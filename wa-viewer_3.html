@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WA Chat Viewer</title>
+<style>
+  :root{
+    --bg:#efe7de; --stage:#d5cdc4; --header:#075e54; --headtext:#e9edef;
+    --in:#ffffff; --out:#d9fdd3; --meta:#667781; --sys:#ffffff; --systext:#54656f;
+    --hl:#ffe58a; --accent:#128c7e; --line:#e4e6e8; --tools:#f0f2f5;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{display:flex;flex-direction:column;background:var(--stage);color:#111b21;font-family:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+
+  #setup{margin:auto;max-width:480px;width:92%;background:#fff;border-radius:16px;padding:28px 24px 22px;box-shadow:0 8px 28px rgba(11,20,26,.12)}
+  #setup h1{font-size:20px;margin:0 0 6px;font-weight:650}
+  #setup p{font-size:13.5px;color:#54656f;line-height:1.55;margin:0}
+  .drop{border:1.5px dashed #c5c9cc;border-radius:12px;padding:22px 16px;text-align:center;margin:18px 0 14px;cursor:pointer;color:#3b4a54;transition:.15s}
+  .drop:hover,.drop.over{border-color:var(--accent);background:#f3faf8}
+  .drop small{display:block;color:#8696a0;margin-top:4px;font-size:12px}
+  .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:10px 0}
+  label.file{background:#fff;color:var(--header);border:1px solid #b7d6d1;padding:8px 14px;border-radius:8px;font-size:13px;cursor:pointer}
+  label.file:hover{background:#f3faf8}
+  input[type=file]{display:none}
+  .tag{font-size:12px;color:#667781;background:#f0f2f5;padding:5px 10px;border-radius:20px}
+  .tag.ok{background:#e7f6f2;color:#075e54}
+  select,button,input{font:inherit}
+  #mineRow{display:none;margin-top:14px}
+  #mineRow span{font-size:13px;color:#3b4a54}
+  #mine{width:100%;margin-top:6px;padding:8px 10px;border-radius:8px;border:1px solid #d6d9dc;background:#fff;font-size:13px}
+  #go{width:100%;margin-top:16px;background:var(--header);color:#fff;border:none;padding:12px 16px;border-radius:10px;font-size:15px;font-weight:650;cursor:pointer}
+  #go:disabled{background:#9bb5b1;cursor:not-allowed}
+
+  #app{display:none;flex-direction:column;height:100%;min-height:0}
+  #top{background:var(--header);color:var(--headtext);padding:10px 16px;display:flex;align-items:center;min-height:58px}
+  #who{min-width:0}
+  #chatName{font-weight:650;font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  #chatSub{font-size:12px;opacity:.85;margin-top:2px}
+  #tools{background:var(--tools);padding:8px 12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;border-bottom:1px solid var(--line)}
+  .search{display:flex;align-items:center;gap:4px;background:#fff;border:1px solid var(--line);border-radius:8px;padding:0 4px 0 10px;flex:1 1 240px;min-width:180px}
+  .search input{border:0;outline:0;background:transparent;flex:1;min-width:0;padding:8px 0;font-size:13px}
+  #count{font-size:12px;color:var(--meta);min-width:3.4em;text-align:right;white-space:nowrap}
+  #tools select{border:1px solid var(--line);background:#fff;border-radius:8px;padding:8px 10px;font-size:13px;max-width:220px}
+  .tool{border:1px solid var(--line);background:#fff;color:#1f2c34;border-radius:8px;padding:8px 12px;font-size:13px;cursor:pointer}
+  .tool:hover{background:#f7f8f8}
+  .tool.primary{background:var(--header);color:#fff;border-color:transparent}
+  .tool.primary:hover{background:#064e46}
+  .tool:disabled{opacity:.65;cursor:wait}
+  .iconbtn{border:0;background:transparent;color:#3b4a54;width:28px;height:28px;border-radius:6px;cursor:pointer;font-size:16px;line-height:1}
+  .iconbtn:hover{background:#f0f2f5}
+  #exportNote{background:var(--tools);color:#8696a0;font-size:12px;line-height:1.4;padding:0 16px 8px;border-bottom:1px solid var(--line)}
+
+  #stage{flex:1;min-height:0;background:var(--stage);display:flex;justify-content:center}
+  #chat{width:min(900px,100%);height:100%;overflow-y:auto;background-color:var(--bg);
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='88' height='88'><circle cx='10' cy='12' r='1.15' fill='%23000' fill-opacity='.055'/><circle cx='52' cy='40' r='1.15' fill='%23000' fill-opacity='.045'/><path d='M22 62h10M27 57v10' stroke='%23000' stroke-opacity='.045' stroke-width='1.15' stroke-linecap='round'/></svg>");
+    box-shadow:0 0 0 1px rgba(11,20,26,.05)}
+  .wrap{min-height:100%}
+  .line{display:flex;flex-direction:column;padding:10px 16px 22px}
+
+  .msg{max-width:min(78%,560px);width:max-content;position:relative;font-size:14.2px;line-height:1.35;overflow-wrap:anywhere;box-shadow:0 1px .5px rgba(11,20,26,.13)}
+  .msg.in{align-self:flex-start;background:var(--in)}
+  .msg.out{align-self:flex-end;background:var(--out)}
+  .msg.start{margin-top:10px;border-radius:8px}
+  .msg.cont{margin-top:2px;border-radius:8px}
+  .line>.msg.start:first-child{margin-top:2px}
+  .msg.in.last{border-bottom-left-radius:4px}
+  .msg.out.last{border-bottom-right-radius:4px}
+  .msg.in.last::after,.msg.out.last::after{content:"";position:absolute;bottom:0;width:0;height:0;border-style:solid}
+  .msg.in.last::after{left:-7px;border-width:0 8px 11px 0;border-color:transparent var(--in) transparent transparent}
+  .msg.out.last::after{right:-7px;border-width:0 0 11px 8px;border-color:transparent transparent var(--out) transparent}
+  .msg{padding:5px 8px 6px}
+  .msg.media-only{padding:3px}
+  .msg.has-audio{width:min(78%,320px)}
+  .sender{font-size:12.5px;font-weight:650;line-height:1.3;margin:0 2px 2px}
+  .body{display:grid;grid-template-columns:auto auto;align-items:end;column-gap:8px;justify-content:start}
+  .body .txt{min-width:0;max-width:min(460px,68vw)}
+  .body .meta{margin:0;font-size:11px;line-height:1.2;color:var(--meta);white-space:nowrap}
+  .body.only-time{display:flex;justify-content:flex-end}
+  .media{position:relative;max-width:min(340px,72vw)}
+  .media img,.media video{display:block;max-width:100%;max-height:300px;width:auto;height:auto;object-fit:contain;border-radius:6px;background:#00000008}
+  .media audio{display:block;width:100%;min-width:0;margin:2px 0}
+  .media.overlay .meta{position:absolute;right:6px;bottom:6px;float:none;margin:0;top:0;background:rgba(0,0,0,.45);color:#fff;border-radius:10px;padding:2px 6px;font-size:11px}
+  .doc{display:flex;gap:8px;align-items:center;background:rgba(11,20,26,.04);border-radius:6px;padding:8px 10px;margin:2px 0;min-width:min(220px,70vw);text-decoration:none;color:inherit;font-size:13px}
+  .doc b{font-size:16px}
+  .miss{background:#f0f2f5;color:var(--meta);border-radius:6px;padding:8px 10px;font-size:12px;font-style:normal;min-width:min(160px,70vw)}
+  .sys{align-self:center;background:rgba(255,255,255,.92);color:var(--systext);font-size:12.5px;font-weight:400;text-align:center;max-width:min(460px,86%);margin:8px auto;padding:6px 12px;border-radius:8px;line-height:1.4;box-shadow:0 1px .5px rgba(11,20,26,.13)}
+  .day{align-self:center;background:#fff;color:#54656f;font-size:12px;font-weight:500;text-align:center;width:max-content;margin:14px auto 8px;padding:5px 12px;border-radius:8px;box-shadow:0 1px .5px rgba(11,20,26,.13)}
+  .day:first-child{margin-top:4px}
+  .day+.msg.start,.sys+.msg.start{margin-top:2px}
+  mark{background:var(--hl);color:inherit;padding:0 1px;border-radius:2px}
+  mark.on{background:#ffb703;scroll-margin:80px}
+
+  @media (max-width:640px){
+    #stage{background:var(--bg)}
+    #chat{width:100%;box-shadow:none}
+    .line{padding:8px 12px 18px}
+    .msg{max-width:88%}
+  }
+</style>
+</head>
+<body>
+
+<div id="setup">
+  <h1>WA Chat Viewer</h1>
+  <p>Buka hasil <b>Export Chat</b>. Masukkan <code>_chat.txt</code> beserta medianya, atau pilih foldernya.</p>
+
+  <div class="drop" id="drop">
+    Tarik file ke sini
+    <small>atau pilih lewat tombol di bawah</small>
+  </div>
+
+  <div class="row">
+    <label class="file">Pilih file<input type="file" id="files" multiple></label>
+    <label class="file">Pilih folder<input type="file" id="folder" webkitdirectory></label>
+    <span class="tag" id="stat">belum ada file</span>
+  </div>
+
+  <div id="mineRow">
+    <span>Chat dari saya (bubble kanan)</span>
+    <select id="mine"></select>
+  </div>
+
+  <button id="go" disabled>Tampilkan chat</button>
+</div>
+
+<div id="app">
+  <header id="top">
+    <div id="who">
+      <div class="title" id="chatName">Chat</div>
+      <div id="chatSub"></div>
+    </div>
+  </header>
+  <div id="tools">
+    <div class="search">
+      <input id="q" placeholder="Cari pesan" autocomplete="off">
+      <span id="count"></span>
+      <button type="button" class="iconbtn" id="prev" aria-label="Hasil sebelumnya">‹</button>
+      <button type="button" class="iconbtn" id="next" aria-label="Hasil berikutnya">›</button>
+    </div>
+    <select id="fsender"><option value="">Semua pengirim</option></select>
+    <button type="button" class="tool" id="flip">Balik sisi</button>
+    <button type="button" class="tool primary" id="export">Unduh HTML</button>
+  </div>
+  <div id="exportNote">Untuk perangkat lain. Media ikut tertanam, jadi file bisa besar.</div>
+  <div id="stage">
+    <div id="chat"><div class="wrap" id="wrap"></div></div>
+  </div>
+</div>
+
+<script>
+const $=s=>document.querySelector(s);
+let mediaMap={}, msgs=[], meName="", chatTitle="Chat", flip=false, prepToken=0;
+const finder={hits:[],hi:-1};
+const senderPalette={};
+const NAME_COLORS=['#1a73c7','#c43b7a','#b07d12','#0a8f62','#6b46c1','#1f8aa8','#d3542a','#0f766e','#a33b5b','#3f51b5'];
+
+const reIOS=/^\u200e?\[(\d{1,2}\/\d{1,2}\/\d{2,4})[,]?\s+(\d{1,2}[:.]\d{2}(?:[:.]\d{2})?(?:\s?[APap][.\s]?[Mm][.\s]?)?)\]\s?([^:]+?):\s?([\s\S]*)$/;
+const reIOSsys=/^\u200e?\[(\d{1,2}\/\d{1,2}\/\d{2,4})[,]?\s+(\d{1,2}[:.]\d{2}(?:[:.]\d{2})?(?:\s?[APap][.\s]?[Mm][.\s]?)?)\]\s?([\s\S]*)$/;
+const reAND=/^(\d{1,2}\/\d{1,2}\/\d{2,4})[,]?\s+(\d{1,2}[:.]\d{2}(?:\s?[APap][.\s]?[Mm][.\s]?)?)\s?-\s?([^:]+?):\s?([\s\S]*)$/;
+const reANDsys=/^(\d{1,2}\/\d{1,2}\/\d{2,4})[,]?\s+(\d{1,2}[:.]\d{2}(?:\s?[APap][.\s]?[Mm][.\s]?)?)\s?-\s?([\s\S]*)$/;
+
+function esc(s){return String(s==null?'':s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));}
+function escAttr(s){return esc(s).replace(/"/g,'&quot;');}
+function clean(s){return String(s||'').replace(/[\u200e\u200f\u202a-\u202e]/g,'').trim();}
+
+function detectMedia(text){
+  let m=text.match(/<attached:\s?([^>]+)>/i); if(m) return clean(m[1]);
+  m=text.match(/([\w\-. ]+\.(?:jpg|jpeg|png|gif|webp|mp4|3gp|mov|opus|mp3|m4a|aac|ogg|wav|pdf|docx?|xlsx?|pptx?|zip|txt|vcf))\s*\(file attached\)/i);
+  if(m) return clean(m[1]);
+  return null;
+}
+
+function parse(txt){
+  const lines=txt.split(/\r?\n/); const out=[];
+  for(const raw of lines){
+    let m=raw.match(reIOS)||raw.match(reAND);
+    if(m){
+      out.push({date:m[1],time:clean(m[2]),sender:clean(m[3]),text:m[4]});
+      continue;
+    }
+    let s=raw.match(reIOSsys)||raw.match(reANDsys);
+    if(s && clean(s[3])){
+      out.push({date:s[1],time:clean(s[2]),sender:null,text:s[3]});
+      continue;
+    }
+    if(out.length && raw.trim()!==''){ out[out.length-1].text+='\n'+raw; }
+  }
+  return out;
+}
+
+function fileType(name){
+  const e=String(name).split('.').pop().toLowerCase();
+  if(['jpg','jpeg','png','gif','webp'].includes(e)) return 'img';
+  if(['mp4','3gp','mov','webm'].includes(e)) return 'vid';
+  if(['opus','mp3','m4a','aac','ogg','wav'].includes(e)) return 'aud';
+  return 'doc';
+}
+
+function assignSenderColors(names){
+  for(const k of Object.keys(senderPalette)) delete senderPalette[k];
+  names.forEach((name,i)=>{ senderPalette[name]=NAME_COLORS[i%NAME_COLORS.length]; });
+}
+function senderColor(name){
+  if(senderPalette[name]) return senderPalette[name];
+  let h=0;
+  for(let i=0;i<name.length;i++) h=(h*33+name.charCodeAt(i))>>>0;
+  return NAME_COLORS[h%NAME_COLORS.length];
+}
+
+function paint(wrap, items, me, flipped){
+  wrap.replaceChildren();
+  const frag=document.createElement('div');
+  frag.className='line';
+  const same=(a,b)=>!!(a&&b&&a.sender!=null&&a.sender===b.sender&&a.date===b.date);
+  for(let i=0;i<items.length;i++){
+    const m=items[i];
+    const prev=i>0?items[i-1]:null;
+    const next=i<items.length-1?items[i+1]:null;
+    if(!prev||prev.date!==m.date){
+      const d=document.createElement('div');
+      d.className='day';
+      d.textContent=m.date;
+      frag.appendChild(d);
+    }
+    if(m.sender==null){
+      const s=document.createElement('div');
+      s.className='sys';
+      s.textContent=clean(m.text);
+      frag.appendChild(s);
+      continue;
+    }
+    const start=!same(prev,m);
+    const end=!same(m,next);
+    const right=(m.sender===me)!==flipped;
+    const missing=!!(m.mediaHtml&&m.mediaHtml.indexOf('class="miss"')>=0);
+    const overlay=!!(m.mediaHtml&&!m.text&&!missing&&(m.mediaKind==='img'||m.mediaKind==='vid'));
+    const el=document.createElement('div');
+    el.className='msg '+(right?'out':'in')+(start?' start':' cont')+(end?' last':'')
+      +(m.mediaHtml&&!m.text?' media-only':'')
+      +(m.mediaKind==='aud'&&!missing?' has-audio':'');
+    let html='';
+    if(start&&m.sender!==me){
+      html+='<div class="sender" style="color:'+senderColor(m.sender)+'">'+esc(m.sender)+'</div>';
+    }
+    const time=esc(m.time);
+    if(m.mediaHtml){
+      html+='<div class="media'+(overlay?' overlay':'')+'">'+m.mediaHtml;
+      if(overlay) html+='<span class="meta">'+time+'</span>';
+      html+='</div>';
+    }
+    if(!overlay){
+      html+='<div class="body'+(m.text?'':' only-time')+'">';
+      if(m.text) html+='<span class="txt">'+esc(m.text).replace(/\n/g,'<br>')+'</span>';
+      html+='<span class="meta">'+time+'</span></div>';
+    }
+    el.innerHTML=html;
+    frag.appendChild(el);
+  }
+  wrap.appendChild(frag);
+}
+
+function highlightQuery(q){
+  document.querySelectorAll('mark').forEach(m=>{
+    const p=m.parentNode;
+    if(!p) return;
+    p.replaceChild(document.createTextNode(m.textContent),m);
+    p.normalize();
+  });
+  finder.hits=[];
+  finder.hi=-1;
+  const countEl=document.getElementById('count');
+  if(!q){ countEl.textContent=''; return; }
+  const rx=new RegExp('('+q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')','gi');
+  document.querySelectorAll('.txt').forEach(node=>{
+    node.innerHTML=node.innerHTML.replace(rx,'<mark>$1</mark>');
+    rx.lastIndex=0;
+  });
+  finder.hits=[...document.querySelectorAll('mark')];
+  if(!finder.hits.length){ countEl.textContent='tidak ada'; return; }
+  finder.hi=0;
+  focusQueryHit();
+}
+
+function focusQueryHit(){
+  const hits=finder.hits;
+  const countEl=document.getElementById('count');
+  hits.forEach(h=>h.classList.remove('on'));
+  if(finder.hi<0||!hits.length) return;
+  const h=hits[finder.hi];
+  h.classList.add('on');
+  h.scrollIntoView({block:'center'});
+  countEl.textContent=(finder.hi+1)+'/'+hits.length;
+}
+
+function stepHit(dir){
+  if(!finder.hits.length) return;
+  finder.hi=(finder.hi+dir+finder.hits.length)%finder.hits.length;
+  focusQueryHit();
+}
+
+function ingest(fileList){
+  for(const f of fileList){
+    const n=f.name;
+    if(n.toLowerCase().endsWith('_chat.txt')||n.toLowerCase()==='chat.txt'||(n.toLowerCase().endsWith('.txt')&&!mediaMap.__txt)){
+      mediaMap.__txt=f;
+    } else {
+      mediaMap[n]=f;
+    }
+  }
+  const has=!!mediaMap.__txt;
+  const mc=Object.keys(mediaMap).filter(k=>k!=='__txt').length;
+  const stat=$('#stat');
+  stat.textContent=(has?'txt ok, ':'txt belum ada, ')+mc+' media';
+  stat.classList.toggle('ok', has);
+  if(has) prepMine();
+}
+
+async function prepMine(){
+  const token=++prepToken;
+  const txt=await mediaMap.__txt.text();
+  if(token!==prepToken) return;
+  const p=parse(txt);
+  const senders=[...new Set(p.filter(x=>x.sender).map(x=>x.sender))];
+  const sel=$('#mine'); sel.innerHTML='';
+  senders.forEach(s=>{const o=document.createElement('option');o.value=s;o.textContent=s;sel.appendChild(o);});
+  if(senders.length) $('#mineRow').style.display='block';
+  window.__parsed=p;
+  $('#go').disabled=false;
+}
+
+function mediaEl(name){
+  const f=mediaMap[name];
+  const t=fileType(name);
+  const safe=escAttr(name);
+  if(!f) return {html:'<div class="miss" title="'+safe+'">Media tidak ada</div>', kind:t};
+  const url=URL.createObjectURL(f);
+  if(t==='img') return {html:'<img src="'+url+'" alt="" loading="lazy">', kind:t};
+  if(t==='vid') return {html:'<video src="'+url+'" controls></video>', kind:t};
+  if(t==='aud') return {html:'<audio src="'+url+'" controls></audio>', kind:t};
+  return {html:'<a class="doc" href="'+url+'" download="'+safe+'"><b>📄</b> '+esc(name)+'</a>', kind:t};
+}
+
+async function render(filterSender=''){
+  const items=[];
+  for(const m of msgs){
+    if(filterSender && m.sender!==filterSender) continue;
+    let mediaHtml='', mediaKind='';
+    if(m.media){
+      const built=mediaEl(m.media);
+      mediaHtml=built.html;
+      mediaKind=built.kind;
+    }
+    items.push({sender:m.sender,text:m.text,time:m.time,date:m.date,mediaHtml,mediaKind});
+  }
+  paint($('#wrap'), items, meName, flip);
+}
+
+async function build(){
+  msgs=window.__parsed||parse(await mediaMap.__txt.text());
+  meName=$('#mine').value||'';
+  const senders=[...new Set(msgs.filter(x=>x.sender).map(x=>x.sender))];
+  assignSenderColors(senders);
+  chatTitle=senders.filter(s=>s!==meName).join(', ')||'Chat';
+  $('#chatName').textContent=chatTitle;
+  const n=msgs.filter(m=>m.sender).length;
+  $('#chatSub').textContent=n+' pesan · '+senders.length+' peserta';
+  const fs=$('#fsender');
+  fs.innerHTML='<option value="">Semua pengirim</option>';
+  senders.forEach(s=>{const o=document.createElement('option');o.value=s;o.textContent=s;fs.appendChild(o);});
+  for(const m of msgs){
+    const file=detectMedia(m.text||'');
+    if(file){
+      m.media=file;
+      m.text=(m.text||'').replace(/‎?<attached:[^>]+>/i,'').replace(/[\w\-. ]+\.\w+\s*\(file attached\)/i,'').trim();
+    }
+  }
+  await render();
+  $('#setup').style.display='none';
+  $('#app').style.display='flex';
+}
+
+$('#files').onchange=e=>ingest(e.target.files);
+$('#folder').onchange=e=>ingest(e.target.files);
+$('#go').onclick=build;
+const drop=$('#drop');
+['dragover','dragenter'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add('over');}));
+['dragleave','drop'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove('over');}));
+drop.addEventListener('drop',e=>ingest(e.dataTransfer.files));
+
+$('#q').addEventListener('input',e=>highlightQuery(e.target.value.trim()));
+$('#next').onclick=()=>stepHit(1);
+$('#prev').onclick=()=>stepHit(-1);
+$('#fsender').onchange=()=>{render($('#fsender').value).then(()=>highlightQuery($('#q').value.trim()));};
+$('#flip').onclick=()=>{flip=!flip;render($('#fsender').value).then(()=>highlightQuery($('#q').value.trim()));};
+
+function readAsDataURL(f){return new Promise(r=>{const fr=new FileReader();fr.onload=()=>r(fr.result);fr.readAsDataURL(f);});}
+
+function standaloneRuntime(){
+  let flip=false;
+  const senders=[];
+  D.msgs.forEach(m=>{ if(m.s && !senders.includes(m.s)) senders.push(m.s); });
+  const n=D.msgs.filter(m=>m.s).length;
+  assignSenderColors(senders);
+  document.getElementById('chatSub').textContent=n+' pesan · '+senders.length+' peserta';
+  const fs=document.getElementById('fsender');
+  senders.forEach(s=>{ const o=document.createElement('option'); o.value=s; o.textContent=s; fs.appendChild(o); });
+  function kindOf(name){ return fileType(name); }
+  function mel(name,url){
+    const safe=escAttr(name);
+    if(!url) return '<div class="miss" title="'+safe+'">Media tidak ada</div>';
+    const k=kindOf(name);
+    if(k==='img') return '<img src="'+url+'" alt="">';
+    if(k==='vid') return '<video src="'+url+'" controls></video>';
+    if(k==='aud') return '<audio src="'+url+'" controls></audio>';
+    return '<a class="doc" href="'+url+'" download="'+safe+'"><b>📄</b> '+esc(name)+'</a>';
+  }
+  function items(){
+    const filter=fs.value;
+    const out=[];
+    for(const m of D.msgs){
+      if(filter && m.s!==filter) continue;
+      out.push({
+        sender:m.s, text:m.t, time:m.tm, date:m.d,
+        mediaHtml:m.m?mel(m.m,m.u):'',
+        mediaKind:m.m?kindOf(m.m):''
+      });
+    }
+    return out;
+  }
+  function draw(){ paint(document.getElementById('wrap'), items(), D.me, flip); }
+  document.getElementById('flip').onclick=()=>{ flip=!flip; draw(); highlightQuery(document.getElementById('q').value.trim()); };
+  fs.onchange=()=>{ draw(); highlightQuery(document.getElementById('q').value.trim()); };
+  document.getElementById('q').addEventListener('input',e=>highlightQuery(e.target.value.trim()));
+  document.getElementById('next').onclick=()=>stepHit(1);
+  document.getElementById('prev').onclick=()=>stepHit(-1);
+  draw();
+}
+
+$('#export').onclick=async ()=>{
+  const btn=$('#export');
+  btn.textContent='Menyiapkan...'; btn.disabled=true;
+  try{
+    const data={title:chatTitle,me:meName,msgs:[]};
+    const cache={};
+    for(const m of msgs){
+      const o={s:m.sender,t:m.text,tm:m.time,d:m.date};
+      if(m.media){
+        if(!(m.media in cache)) cache[m.media]=mediaMap[m.media]?await readAsDataURL(mediaMap[m.media]):null;
+        o.m=m.media; o.u=cache[m.media];
+      }
+      data.msgs.push(o);
+    }
+    const html=buildStandalone(data);
+    const blob=new Blob([html],{type:'text/html'});
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(blob);
+    a.download=(chatTitle.replace(/[^\w]+/g,'_')||'chat')+'.html';
+    a.click();
+  } finally {
+    btn.textContent='Unduh HTML'; btn.disabled=false;
+  }
+};
+
+function buildStandalone(data){
+  const css=document.querySelector('style').textContent;
+  const json=JSON.stringify(data).replace(/</g,'\\u003c');
+  const title=esc(data.title);
+  const script=[
+    'const finder={hits:[],hi:-1};',
+    'const senderPalette={};',
+    'const NAME_COLORS='+JSON.stringify(NAME_COLORS)+';',
+    esc.toString(),
+    escAttr.toString(),
+    clean.toString(),
+    fileType.toString(),
+    assignSenderColors.toString(),
+    senderColor.toString(),
+    paint.toString(),
+    highlightQuery.toString(),
+    focusQueryHit.toString(),
+    stepHit.toString(),
+    standaloneRuntime.toString(),
+    'standaloneRuntime();'
+  ].join('\n');
+  return '<!DOCTYPE html><html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>'
+    +title+'</title><style>'+css+'</style></head><body><div id="app" style="display:flex"><header id="top"><div id="who"><div id="chatName">'
+    +title+'</div><div id="chatSub"></div></div></header><div id="tools"><div class="search"><input id="q" placeholder="Cari pesan" autocomplete="off"><span id="count"></span><button type="button" class="iconbtn" id="prev" aria-label="Hasil sebelumnya">‹</button><button type="button" class="iconbtn" id="next" aria-label="Hasil berikutnya">›</button></div><select id="fsender"><option value="">Semua pengirim</option></select><button type="button" class="tool" id="flip">Balik sisi</button></div><div id="stage"><div id="chat"><div class="wrap" id="wrap"></div></div></div></div><script>const D='
+    +json+';\n'+script+'<\/script></body></html>';
+}
+</script>
+</body>
+</html>
