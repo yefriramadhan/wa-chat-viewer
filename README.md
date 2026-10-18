@@ -4,7 +4,7 @@ A single HTML file that opens a WhatsApp chat export in the browser. Messages an
 
 ## Open it
 
-Open `wa-viewer_3.html` in a desktop browser.
+Open `whatsapp_Chat_Viewer_Offline.html` in a desktop browser.
 
 1. In WhatsApp, export a chat and include the media.
 2. Drop `_chat.txt` and the media files here, or choose the export folder.
